@@ -1,74 +1,76 @@
 package org.example.task2_figura;
 
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Button;
-import javafx.scene.control.ColorPicker;
-import javafx.scene.paint.Color;
 
 import javafx.scene.input.MouseEvent;
 
+import javafx.scene.layout.Pane;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Shape;
+
 public class HelloController {
-
     @FXML
-    private Canvas canvas;
-    private GraphicsContext gc;
+    private Pane drawingPane; // Панель для рисования
 
-    @FXML
-    private ColorPicker colorPicker;
-    private Shape currentFigure;
+    private Memento temp; // Временное хранилище для текущей фигуры
+    private MemoSelect memoSelect = new MemoSelect(); // Управление множеством состояний
 
-    @FXML
+    // Инициализация стартового набора фигур
     public void initialize() {
-        gc = canvas.getGraphicsContext2D();
+        Circle circle = new Circle(100, 100, 50);
+        Rectangle rectangle = new Rectangle(200, 200, 100, 100);
 
-    }
+        drawingPane.getChildren().addAll(circle, rectangle);
 
-    @FXML
-    public void onMouseEvent(MouseEvent event) {
-        double x = event.getX();
-        double y = event.getY();
-        if (currentFigure != null) {
-            currentFigure.draw(gc, x, y, colorPicker.getValue());
+        // Добавляем обработчики событий для каждой фигуры
+        for (var node : drawingPane.getChildren()) {
+            if (node instanceof Shape) {
+                Shape shape = (Shape) node;
+                shape.setOnMousePressed(this::onBegin);
+                shape.setOnMouseDragged(this::onDrag);
+                shape.setOnMouseReleased(this::onEnd);
+            }
         }
     }
 
-    @FXML
-    public void onClickRectangle(ActionEvent actionEvent) {
-        setCurrentFigure(new Rectangle());
-    }
-
-    @FXML
-    public void onClickLine(ActionEvent actionEvent) {
-        setCurrentFigure(new Line());
-    }
-
-    @FXML
-    public void onClickTriangle(ActionEvent actionEvent) {
-        setCurrentFigure(new Triangle());
-    }
-
-    @FXML
-    public void onClickOval(ActionEvent actionEvent) {
-        setCurrentFigure(new Oval());
-    }
-
-    @FXML
-    public void onColorChanged(ActionEvent actionEvent) {
-
-        if (currentFigure != null) {
-            currentFigure.updateColor(colorPicker.getValue());
+    // Обработчик начала перетаскивания
+    public void onBegin(MouseEvent event) {
+        if (event.getSource() instanceof Shape) {
+            Shape shape = (Shape) event.getSource();
+            temp = new Memento(shape); // Создаем снимок состояния
+            memoSelect.push(temp); // Сохраняем состояние в Caretaker
+            temp.initState().toFront(); // Выделяем фигуру
         }
     }
 
-    private void setCurrentFigure(Shape shape) {
-        currentFigure = shape;
-        clearCanvas();
+    // Обработчик перетаскивания
+    public void onDrag(MouseEvent event) {
+        if (temp == null) return;
+        Shape shape = temp.initState();
+
+        // Получаем координаты мыши относительно панели
+        double mouseX = event.getX();
+        double mouseY = event.getY();
+
+        // Перемещаем фигуру так, чтобы её центр был под курсором
+        shape.setLayoutX(mouseX - shape.getBoundsInLocal().getWidth() / 2);
+        shape.setLayoutY(mouseY - shape.getBoundsInLocal().getHeight() / 2);
     }
 
-    private void clearCanvas() {
-        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+    // Обработчик завершения перетаскивания
+    public void onEnd(MouseEvent event) {
+        if (temp == null) return;
+        Shape shape = temp.getState(); // Восстанавливаем состояние
+
+        // Получаем координаты мыши относительно панели
+        double mouseX = event.getX();
+        double mouseY = event.getY();
+
+        // Устанавливаем финальное положение фигуры
+        shape.setLayoutX(mouseX - shape.getBoundsInLocal().getWidth() / 2);
+        shape.setLayoutY(mouseY - shape.getBoundsInLocal().getHeight() / 2);
+
+        temp = null; // Сбрасываем временное хранилище
     }
 }
